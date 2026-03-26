@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard | ABE Secure Storage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak] { display: none !important; }</style>
+  </head>
+  
+  <body class="bg-transparent"
+    x-data="{ 
+    files: [], 
+    fileName: '', 
+    policy: '', 
+    userAttributes: [], // 存储当前用户的属性
+    
+    async init() {
+        // 1. 获取文件列表
+        fetch('http://localhost:3000/api/files')
+            .then(res => res.json())
+            .then(data => this.files = data);
+            
+        // 2. 获取当前用户信息及其属性 (关键步骤)
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            const res = await fetch('http://localhost:3000/api/user/me', {
+                headers: { 'Authorization': token }
+            });
+            const userData = await res.json();
+            this.userAttributes = userData.attributes || [];
+        }
+    }
+}"
+
+    x-init="
+
+    fetch('http://localhost:3000/api/files')
+        .then(res => res.json())
+        .then(data => files = data);
+    
+
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+
+        fetch('http://localhost:3000/api/user/me', {
+        headers: { 'Authorization': token }
+    })
+        .then(res => res.json())
+        .then(userData => { 
+
+            userAttributes = Array.isArray(userData.attributes) ? userData.attributes : [];
+    })
+        .catch(err => console.error('Error fetching user info:', err));
+  } else {
+
+        window.location.href = 'signin.html';
+  }
+"
+  >
+      
+    <main class="w-full p-6 lg:p-10">
+        
+        <div class="mb-8">
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard</h1>
+            <p class="text-gray-500 font-medium">ABE Control Panel</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-blue-100 p-8 mb-8 w-full">
+            <h3 class="text-xl font-bold mb-6 text-gray-800">Upload & Encrypt</h3>
+            
+        <div 
+            class="p-12 border-2 border-dashed rounded-3xl text-center transition-all duration-300 relative"
+            :class="isDragging ? 'border-blue-500 bg-blue-50/50 scale-[1.01] shadow-inner' : 'border-gray-200 bg-gray-50'"
+            x-data="{ isDragging: false }"
+            @dragover.prevent="isDragging = true"
+            @dragenter.prevent="isDragging = true"
+            @dragleave.prevent="isDragging = false"
+            @drop.prevent="
+                isDragging = false; 
+                if($event.dataTransfer.files.length > 0) {
+                    $refs.fileInput.files = $event.dataTransfer.files;
+                    $refs.fileInput.dispatchEvent(new Event('change'));
+                }
+            "
+        >
+            <label class="cursor-pointer flex flex-col items-center w-full">
+                <input type="file" 
+                       x-ref="fileInput"
+                       accept=".pdf,.docx,.png,.jpg,.jpeg,.zip"
+                       class="hidden" 
+                       @change="fileName = $event.target.files[0] ? $event.target.files[0].name : ''" />
+
+                <div class="text-5xl mb-4 transition-transform" :class="isDragging ? '-translate-y-2' : ''">
+                    <span x-show="!isDragging">📁</span>
+                    <span x-show="isDragging" x-cloak class="animate-pulse">📥</span>
+                </div>
+                
+                <p class="font-black mb-2 tracking-tight" :class="isDragging ? 'text-blue-600' : 'text-gray-900'">
+                    <span x-show="!isDragging">Drag files here or click to upload</span>
+                    <span x-show="isDragging" x-cloak class="text-blue-500">Release to Capture!</span>
+                </p>
+                
+                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mb-6 opacity-60">
+                    PDF • DOCX • PNG • JPG • ZIP
+                </p>
+                
+                <div class="px-8 py-2.5 bg-white text-blue-600 font-black rounded-full text-[10px] uppercase tracking-widest border border-blue-100 shadow-sm hover:bg-blue-600 hover:text-white transition-all">
+                    Browse Local Files
+                </div>
+
+                <div class="mt-6 min-h-[24px]">
+                    <template x-if="fileName">
+                        <div class="flex items-center gap-2 bg-blue-600 text-white px-4 py-1.5 rounded-full shadow-lg animate-bounce-short">
+                            <span class="text-xs">📎</span>
+                            <span class="text-xs font-black italic" x-text="fileName"></span>
+                        </div>
+                    </template>
+                    <template x-if="!fileName">
+                        <span class="text-gray-300 text-xs font-bold tracking-tight italic">Waiting for file...</span>
+                    </template>
+                </div>
+            </label>
+        </div>
+            
+ <div class="mt-8 mb-6 p-8 bg-blue-50/50 rounded-3xl border border-blue-100 shadow-inner">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">🛡️</span>
+                <h4 class="text-xs font-black text-blue-900 uppercase tracking-widest">ABE Policy Builder</h4>
+            </div>
+            <button @click="policy = ''" class="text-[10px] font-black text-red-400 hover:text-red-600 uppercase transition-colors">Clear All</button>
+        </div>
+
+        <div class="space-y-6">
+            <div class="w-full min-h-[60px] p-4 rounded-2xl bg-white border-2 border-dashed border-blue-200 flex flex-wrap items-center gap-2">
+                <template x-if="!policy">
+                    <span class="text-gray-300 text-xs font-bold italic">Select attributes below to build access policy...</span>
+                </template>
+                <template x-if="policy">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <template x-for="part in policy.split(' AND ')" :key="part">
+                            <span class="px-3 py-1 bg-blue-600 text-white text-[10px] font-black rounded-lg shadow-sm animate-fadeIn" x-text="part"></span>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <div class="pt-2">
+                <p class="text-[10px] font-black text-gray-400 mb-4 uppercase tracking-widest ml-1">Your Available Attributes:</p>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="attr in userAttributes" :key="attr">
+                        <button 
+                            @click="policy = policy ? policy + ' AND ' + attr : attr"
+                            type="button"
+                            class="px-4 py-2 bg-white hover:bg-blue-600 hover:text-white border border-blue-200 text-blue-600 text-[11px] font-black rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-2 group"
+                        >
+                            <span x-text="attr"></span>
+                            <span class="opacity-0 group-hover:opacity-100 text-blue-300">+</span>
+                        </button>
+                    </template>
+                    
+                    <template x-if="userAttributes.length === 0">
+                        <div class="text-xs text-gray-400 italic bg-gray-100 px-4 py-2 rounded-xl w-full text-center">
+                            You don't have any attributes to share.
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+            <button class="w-full mt-8 py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 active:scale-[0.99] transition-all uppercase tracking-wider">
+                Encrypt & Upload to Cloud
+            </button>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden w-full">
+            <div class="px-8 py-6 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800">Cloud Secure Files</h3>
+                <span class="px-3 py-1 bg-green-50 text-green-600 text-xs font-bold rounded-full" x-text="files.length + ' Files Secured'"></span>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50/50 border-b border-gray-100">
+                        <tr>
+                            <th class="px-8 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">File Name</th>
+                            <th class="px-8 py-4 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        <template x-if="files.length === 0">
+                            <tr>
+                                <td colspan="2" class="px-8 py-12 text-center text-gray-400">No encrypted files found in the vault.</td>
+                            </tr>
+                        </template>
+
+                        <template x-for="file in files" :key="file.fileId">
+                            <tr class="hover:bg-gray-50/50 transition-colors">
+                                <td class="px-8 py-5">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-xl">📄</span>
+                                        <span class="font-bold text-gray-700" x-text="file.fileName"></span>
+                                    </div>
+                                </td>
+                                <td class="px-8 py-5 text-right">
+                                    <button class="px-5 py-2 bg-gray-900 text-white text-xs font-black rounded-lg hover:bg-black transition-all">
+                                        Decrypt & Download
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+  </body>
+</html>

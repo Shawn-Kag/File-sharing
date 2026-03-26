@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign Up | Secure System</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-50 text-gray-800 flex h-screen items-center justify-center p-6">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <div class="mb-8 text-center">
+            <h1 class="text-3xl font-black text-gray-900 mb-2">Sign Up</h1>
+            <p class="text-sm text-gray-500">Create your ABE credentials</p>
+        </div>
+        
+        <form id="registerForm" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="mb-1.5 block text-xs font-bold text-gray-700 uppercase">First Name</label>
+                    <input type="text" id="fname" required class="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none" />
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-bold text-gray-700 uppercase">Last Name</label>
+                    <input type="text" id="lname" required class="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none" />
+                </div>
+            </div>
+            <div>
+                <label class="mb-1.5 block text-xs font-bold text-gray-700 uppercase">Email</label>
+                <input type="email" id="email" required class="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm focus:border-blue-500 focus:bg-white focus:outline-none" />
+            </div>
+            <div>
+                <label class="mb-1.5 block text-xs font-bold text-gray-700 uppercase">Password</label>
+                <input type="password" id="password" required class="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm focus:border-blue-500 focus:bg-white focus:outline-none" />
+            </div>
+            
+            <button type="submit" class="w-full py-3 mt-6 text-sm font-bold text-white transition-all bg-gray-900 rounded-xl hover:bg-black shadow-lg active:scale-95">
+                Create Account
+            </button>
+        </form>
+        
+        <p class="mt-6 text-sm text-center text-gray-500">
+            Already have an account? <a href="signin.html" class="text-blue-600 font-bold hover:underline">Sign In</a>
+        </p>
+    </div>
+
+    <script>
+      document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userData = {
+          firstName: document.getElementById('fname').value,
+          lastName: document.getElementById('lname').value,
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+          attributes: ["Department=Engineering", "AccessLevel=1"] // 给新用户默认分配ABE属性
+        };
+
+        try {
+          const res = await fetch('http://localhost:3000/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userData)
+          });
+          if (res.ok) {
+            alert('Success! Please sign in.');
+            window.location.href = 'signin.html';
+          } else {
+            const err = await res.json();
+            alert(err.message);
+          }
+        } catch (err) {
+          alert("Server connection failed!");
+        }
+      });
+    </script>
+  </body>
+</html>

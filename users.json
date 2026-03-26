@@ -1,0 +1,12 @@
+[
+  {
+    "email": "111@gmail.com",
+    "password": "111",
+    "firstName": "shawn",
+    "lastName": "k",
+    "attributes": [
+      "Department=Engineering",
+      "AccessLevel=1"
+    ]
+  }
+]
