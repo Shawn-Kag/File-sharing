@@ -27,12 +27,12 @@
       const token = localStorage.getItem('auth_token');
       if (token) {
         isLoggedIn = true;
-        fetch('http://localhost:3000/api/user/me', { headers: { 'Authorization': token } })
+        fetch('http://localhost:8080/api/user/me', { headers: { 'Authorization': token } })
         .then(res => res.json())
         .then(data => { 
             user.firstName = data.firstName || 'User';
             user.email = data.email || 'guest@example.com';
-            return fetch('http://localhost:3000/api/files');
+            return fetch('http://localhost:8080/api/files');
         })
         .then(res => res.json())
         .then(fileData => { 

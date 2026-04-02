@@ -18,14 +18,14 @@
     
     async init() {
         // 1. 获取文件列表
-        fetch('http://localhost:3000/api/files')
+        fetch('http://localhost:8080/api/files')
             .then(res => res.json())
             .then(data => this.files = data);
             
-        // 2. 获取当前用户信息及其属性 (关键步骤)
+        // 2. 获取当前用户信息及其属性
         const token = localStorage.getItem('auth_token');
         if (token) {
-            const res = await fetch('http://localhost:3000/api/user/me', {
+            const res = await fetch('http://localhost:8080/api/user/me', {
                 headers: { 'Authorization': token }
             });
             const userData = await res.json();
@@ -36,7 +36,7 @@
 
     x-init="
 
-    fetch('http://localhost:3000/api/files')
+    fetch('http://localhost:8080/api/files')
         .then(res => res.json())
         .then(data => files = data);
     
@@ -44,7 +44,7 @@
     const token = localStorage.getItem('auth_token');
     if (token) {
 
-        fetch('http://localhost:3000/api/user/me', {
+        fetch('http://localhost:8080/api/user/me', {
         headers: { 'Authorization': token }
     })
         .then(res => res.json())
