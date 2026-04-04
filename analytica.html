@@ -24,30 +24,44 @@
       user: { firstName: 'Guest', email: '' }
     }"
     x-init="
-      const token = localStorage.getItem('auth_token');
-      if (token) {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
         isLoggedIn = true;
-        fetch('http://localhost:8080/api/user/me', { headers: { 'Authorization': token } })
-        .then(res => res.json())
-        .then(data => { 
-            user.firstName = data.firstName || 'User';
-            user.email = data.email || 'guest@example.com';
-            return fetch('http://localhost:8080/api/files');
+        fetch('http://localhost:8080/abe/list', { 
+            headers: { 'Authorization': 'Bearer ' + token } 
         })
-        .then(res => res.json())
-        .then(fileData => { 
-            files = Array.isArray(fileData) ? fileData.reverse() : []; 
+        .then(res => {
+            if (!res.ok) throw new Error('CORS or Server Error');
+            return res.json();
+        })
+        .then(fileData => {
+            let rawFiles = Array.isArray(fileData) ? fileData.reverse() : [];
+            
+            rawFiles.forEach(f => {
+                if (f.ownerId === 1) {
+                    f.owner = 'SuperAdmin';
+                    f.uploader = 'SuperAdmin';
+                }
+            });
+            
+            files = rawFiles;
+
+            user.email = 'SuperAdmin';
+
             setTimeout(() => {
                 if(window.renderDynamicCharts) {
-                    window.renderDynamicCharts(files, user.email);
+                    window.renderDynamicCharts(files, 'SuperAdmin');
                 }
             }, 100);
         })
-        .catch(err => { isLoggedIn = false; });
-      } else {
+        .catch(err => { 
+            console.error('Final proof it is CORS:', err);
+            // isLoggedIn = false; 
+        });
+    } else {
         window.location.href = 'signin.html';
-      }
-    "
+    }
+"
     class="bg-transparent text-gray-800"
   >
 
@@ -137,23 +151,24 @@
 
     <script>
       window.renderDynamicCharts = function(files, currentUserEmail) {
-        const totalMonthly = Array(12).fill(0);
-        const myMonthly = Array(12).fill(0);
+          const totalMonthly = Array(12).fill(0);
+          const myMonthly = Array(12).fill(0);
 
-        files.forEach(file => {
-           const date = new Date(file.uploadDate);
-           if (!isNaN(date)) {
-               const monthIndex = date.getMonth();
-               totalMonthly[monthIndex] += 1;
-               if (file.owner === currentUserEmail) {
-                   myMonthly[monthIndex] += 1;
-               }
-           }
-        });
+          files.forEach(file => {
+              const rawDate = file.uploadDate || file.createdAt || file.date || new Date();
+              const date = new Date(rawDate);
+              
+              if (!isNaN(date)) {
+                  const monthIndex = date.getMonth();
+                  totalMonthly[monthIndex] += 1;
 
-        const myFilesCount = files.filter(f => f.owner === currentUserEmail).length;
-        const totalFilesCount = files.length === 0 ? 1 : files.length;
-        const ownershipPercentage = Math.round((myFilesCount / totalFilesCount) * 100);
+                  myMonthly[monthIndex] += 1;
+              }
+          });
+
+          const myFilesCount = files.length;
+          const totalFilesCount = files.length === 0 ? 1 : files.length;
+          const ownershipPercentage = Math.round((myFilesCount / totalFilesCount) * 100);
 
         // Chart 1
         new ApexCharts(document.querySelector("#chartOne"), {

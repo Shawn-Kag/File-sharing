@@ -45,33 +45,50 @@
     </div>
 
     <script>
-      document.getElementById('registerForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const userData = {
-          firstName: document.getElementById('fname').value,
-          lastName: document.getElementById('lname').value,
-          email: document.getElementById('email').value,
-          password: document.getElementById('password').value,
-          attributes: ["Department=Engineering", "AccessLevel=1"] // 给新用户默认分配ABE属性
-        };
+// Optimized Signup Logic
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // 1. Match the IDs EXACTLY as shown in your HTML image
+    const fInput = document.getElementById('fname'); // Lowercase as per your screenshot
+    const lInput = document.getElementById('lname'); // Lowercase as per your screenshot
+    const eInput = document.getElementById('email');
+    const pInput = document.getElementById('password');
 
-        try {
-          const res = await fetch('http://localhost:8080/api/register', {
+    // 2. Safety check: Ensure no element is null
+    if (!fInput || !lInput || !eInput || !pInput) {
+        console.error("ID mismatch! Check if IDs in HTML match the script.");
+        return;
+    }
+
+    // 3. Construct the payload according to RegisterRequest.java
+    const payload = {
+        username: fInput.value + lInput.value, // Combine fname and lname
+        email: eInput.value,                   // Matches String email[cite: 1]
+        password: pInput.value                 // Matches String password[cite: 1]
+    };
+
+    try {
+        // 4. Send the request to the backend Base URL[cite: 1]
+        const res = await fetch('http://localhost:8080/abe/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(userData)
-          });
-          if (res.ok) {
-            alert('Success! Please sign in.');
+            body: JSON.stringify(payload)
+        });
+
+        // 5. Handle the response
+        if (res.ok) {
+            alert("Account created successfully!");
             window.location.href = 'signin.html';
-          } else {
-            const err = await res.json();
-            alert(err.message);
-          }
-        } catch (err) {
-          alert("Server connection failed!");
+        } else {
+            const result = await res.json();
+            alert("Registration failed: " + (result.message || "Unknown error"));
         }
-      });
+    } catch (err) {
+        console.error("Network Error:", err);
+        alert("Server connection failed. Please ensure the Spring Boot app is running.");
+    }
+});
     </script>
   </body>
 </html>

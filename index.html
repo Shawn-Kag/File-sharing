@@ -9,56 +9,44 @@
     <style>[x-cloak] { display: none !important; }</style>
   </head>
   
-  <body class="bg-transparent"
-    x-data="{ 
-    files: [], 
-    fileName: '', 
-    policy: '', 
-    userAttributes: [], // 存储当前用户的属性
-    
-    async init() {
-        // 1. 获取文件列表
-        fetch('http://localhost:8080/api/files')
-            .then(res => res.json())
-            .then(data => this.files = data);
-            
-        // 2. 获取当前用户信息及其属性
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-            const res = await fetch('http://localhost:8080/api/user/me', {
-                headers: { 'Authorization': token }
-            });
-            const userData = await res.json();
-            this.userAttributes = userData.attributes || [];
+    <body class="bg-transparent" x-data="uploadPanel()">
+    <script>
+        function uploadPanel() {
+            return {
+                files: [],
+                fileName: '',
+                policy: '',
+                // Initialize directly from localStorage
+                userAttributes: JSON.parse(localStorage.getItem('user_attributes') || '[]'),
+
+                async init() {
+                    const token = localStorage.getItem('auth_token');
+                    if (!token) {
+                        // Redirect the WHOLE window if session expired
+                        window.top.location.href = 'signin.html';
+                        return;
+                    }
+
+                    // 1. Fetch File List
+                    try {
+                        const res = await fetch('http://localhost:8080/abe/list', {
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+                        if (res.ok) this.files = await res.json();
+                    } catch (e) {
+                        console.error('Fetch error:', e);
+                    }
+
+                    // 2. Re-sync attributes to be safe
+                    const saved = localStorage.getItem('user_attributes');
+                    if (saved) {
+                        this.userAttributes = JSON.parse(saved);
+                        console.log('✅ Attributes loaded in iframe:', this.userAttributes);
+                    }
+                }
+            }
         }
-    }
-}"
-
-    x-init="
-
-    fetch('http://localhost:8080/api/files')
-        .then(res => res.json())
-        .then(data => files = data);
-    
-
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-
-        fetch('http://localhost:8080/api/user/me', {
-        headers: { 'Authorization': token }
-    })
-        .then(res => res.json())
-        .then(userData => { 
-
-            userAttributes = Array.isArray(userData.attributes) ? userData.attributes : [];
-    })
-        .catch(err => console.error('Error fetching user info:', err));
-  } else {
-
-        window.location.href = 'signin.html';
-  }
-"
-  >
+    </script>
       
     <main class="w-full p-6 lg:p-10">
         
@@ -86,11 +74,12 @@
             "
         >
             <label class="cursor-pointer flex flex-col items-center w-full">
-                <input type="file" 
-                       x-ref="fileInput"
-                       accept=".pdf,.docx,.png,.jpg,.jpeg,.zip"
-                       class="hidden" 
-                       @change="fileName = $event.target.files[0] ? $event.target.files[0].name : ''" />
+                <input type="file"
+                    x-ref="fileInput"
+                    accept=".pdf,.docx,.png,.jpg,.jpeg,.zip"
+                    class="hidden"
+                    @change="selectedFile = $event.target.files[0]; fileName = selectedFile ? selectedFile.name : ''" 
+                />
 
                 <div class="text-5xl mb-4 transition-transform" :class="isDragging ? '-translate-y-2' : ''">
                     <span x-show="!isDragging">📁</span>
@@ -151,13 +140,10 @@
                 <p class="text-[10px] font-black text-gray-400 mb-4 uppercase tracking-widest ml-1">Your Available Attributes:</p>
                 <div class="flex flex-wrap gap-2">
                     <template x-for="attr in userAttributes" :key="attr">
-                        <button 
-                            @click="policy = policy ? policy + ' AND ' + attr : attr"
-                            type="button"
-                            class="px-4 py-2 bg-white hover:bg-blue-600 hover:text-white border border-blue-200 text-blue-600 text-[11px] font-black rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-2 group"
-                        >
+                        <button type="button" @click="policy = policy ? policy + ' & ' + attr : attr" 
+                                class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-bold shadow-sm flex items-center gap-2 hover:border-blue-300 hover:text-blue-600 hover:shadow transition-all cursor-pointer active:scale-95 select-none">
+                            <div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
                             <span x-text="attr"></span>
-                            <span class="opacity-0 group-hover:opacity-100 text-blue-300">+</span>
                         </button>
                     </template>
                     
@@ -172,9 +158,12 @@
     </div>
 
 
-            <button class="w-full mt-8 py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 active:scale-[0.99] transition-all uppercase tracking-wider">
-                Encrypt & Upload to Cloud
-            </button>
+        <button 
+            @click="uploadFile()" 
+            class="w-full mt-8 py-4 bg-blue-600 text-white font-black rounded-xl ..."
+        >
+            Encrypt & Upload to Cloud
+        </button>
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden w-full">
@@ -203,11 +192,11 @@
                                 <td class="px-8 py-5">
                                     <div class="flex items-center gap-3">
                                         <span class="text-xl">📄</span>
-                                        <span class="font-bold text-gray-700" x-text="file.fileName"></span>
+                                        <span class="font-bold text-gray-700" x-text="file.filename"></span>
                                     </div>
                                 </td>
                                 <td class="px-8 py-5 text-right">
-                                    <button class="px-5 py-2 bg-gray-900 text-white text-xs font-black rounded-lg hover:bg-black transition-all">
+                                    <button @click="downloadFile(file.id, file.filename)" class="px-5 py-2 bg-gray-900 text-white text-xs font-black rounded-lg hover:bg-black transition-all">
                                         Decrypt & Download
                                     </button>
                                 </td>
@@ -218,6 +207,158 @@
             </div>
         </div>
     </main>
+
+    <script>
+        function uploadPanel() {
+            return {
+                files: [],
+                fileName: '',
+                selectedFile: null,
+                policy: '',
+                userAttributes: [],
+                baseUrl: 'http://localhost:8080/abe',
+
+                async init() {
+                    console.log("Alpine Initializing...");
+                    await this.fetchUserAttributes();
+                    await this.fetchFileList();
+                },
+
+                async fetchUserAttributes() {
+                    try {
+                        // Fetch attributes from local storage saved during login
+                        const saved = localStorage.getItem('user_attributes');
+                        
+                        if (saved && saved !== '[]') {
+                            console.log("Successfully loaded attributes from local storage:", saved);
+                            const parsed = JSON.parse(saved);
+                            
+                            // Ensure the data is formatted as an array
+                            let rawArray = Array.isArray(parsed) ? parsed : parsed.split(',');
+                            
+                            // Assign to state and filter out system ID tags
+                            this.userAttributes = rawArray
+                                .map(a => a.trim())
+                                .filter(a => a && !a.startsWith('ID:'));
+                                
+                        } else {
+                            console.warn("No attribute data found in local storage. Please log in again.");
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse local attributes:", e);
+                    }
+                },
+
+                async fetchFileList() {
+                    const token = localStorage.getItem('auth_token');
+                    try {
+                        const res = await fetch(`${this.baseUrl}/list`, {
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+                        if (res.ok) {
+                            this.files = await res.json();
+                        }
+                    } catch (e) {
+                        console.error("Fetch list error:", e);
+                    }
+                },
+
+
+                async uploadFile() {
+                // 1. Check our direct variable instead of refs
+                    if (!this.selectedFile) {
+                        return alert('Please select a file first!');
+                    }
+                    
+                    if (!this.policy) {
+                        return alert('Please build an access policy using the attributes!');
+                    }
+
+                    // Prepare form data for backend
+                    const token = localStorage.getItem('auth_token');
+                    const formData = new FormData();
+                    formData.append('file', this.selectedFile);
+                    formData.append('selectedTags', this.policy.replace(/\s*&\s*/g, ','));
+                    
+                    // --- FIXED KEY GENERATION ---
+                    // 1. Define a safe character set
+                    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                    
+                    // 2. Build a string of exactly 16 characters
+                    let rawKey = '';
+                    for (let i = 0; i < 16; i++) {
+                        rawKey += charset.charAt(Math.floor(Math.random() * charset.length));
+                    }
+                    // 3. Convert to Base64 (16 chars will always perfectly encode without data loss)
+                    const base64Key = btoa(rawKey);
+                    
+                    formData.append('key', base64Key); 
+
+                    try {
+                        const res = await fetch(`${this.baseUrl}/encrypt-file`, {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + token },
+                            body: formData
+                        });
+
+                        if (res.ok) {
+                            alert('File Encrypted and Uploaded Successfully!');
+                            await this.init(); 
+                            this.policy = '';  
+                            this.selectedFile = null;
+                            this.fileName = '';
+                        } else {
+                            const errorMsg = await res.text();
+                            alert('Upload failed. Check console for details.');
+                            console.error('Backend returned an error:', errorMsg);
+                        }
+                    } catch (err) {
+                        console.error('Network Error:', err);
+                        alert('Connection failed.');
+                    }
+                },
+
+                async downloadFile(fileId, filename) {
+                const token = localStorage.getItem('auth_token');
+                if (!token) return alert('Please login first!');
+
+                try {
+                    // IMPORTANT: Make sure this URL matches your Java backend's download endpoint!
+                    // It might be /download/{id} or /decrypt-file/{id} depending on your ABEController
+                    const res = await fetch(`${this.baseUrl}/download/${fileId}`, {
+                        method: 'GET',
+                        headers: { 
+                            'Authorization': 'Bearer ' + token 
+                        }
+                    });
+
+                    if (res.ok) {
+                        // Convert the encrypted stream back into a downloadable file
+                        const blob = await res.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        // Use the original filename, or a fallback name
+                        a.download = filename || 'decrypted_file'; 
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                        alert('File Decrypted and Downloaded Successfully!');
+                    } else {
+                        const errorMsg = await res.text();
+                        console.error("Download failed:", errorMsg);
+                        alert('Decryption Failed! You might not have the required attributes (Policy missing).');
+                    }
+                } catch (e) {
+                    console.error("Network error during download:", e);
+                    alert('Network error. Is the backend running?');
+                }
+            }
+
+            }
+        }
+    </script>
 
   </body>
 </html>

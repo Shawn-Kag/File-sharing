@@ -13,15 +13,21 @@
   </head>
   <body x-data="{ 
       showEditModal: false,
-      user: { firstName: 'Admin', lastName: 'User', email: 'admin@example.com' } 
+      user: { 
+        firstName: localStorage.getItem('username') || 'Admin', 
+        email: localStorage.getItem('user_email') || 'admin@example.com',
+        role: localStorage.getItem('user_role') || 'USER'
+    }
     }" class="bg-gray-50 flex h-screen overflow-hidden">
 
     <aside class="w-72 flex flex-col border-r bg-white h-full shrink-0">
-      <div class="p-8 font-black text-2xl text-blue-600 italic">SecureShare</div>
+      <a href="welcome.html" class="block p-8 font-black text-2xl text-blue-600 italic cursor-pointer hover:text-blue-700 hover:opacity-80 transition-all">SecureShare</a>
       <nav class="flex-1 px-6 space-y-2">
         <a href="index.html" target="contentFrame" class="flex items-center gap-3 p-3 font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">🏠 Dashboard</a>
         <a href="analytica.html" target="contentFrame" class="flex items-center gap-3 p-3 font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">📈 Analytica</a>
         <a href="explorer.html" target="contentFrame" class="flex items-center gap-3 p-3 font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">🗂️ File Explorer</a>
+        <!-- Admin Panel link - only visible or accessible to Admin -->
+        <a x-show="user.role === 'ADMIN'" href="admin.html" target="contentFrame" class="flex items-center gap-3 p-3 font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">🛡️ Admin Panel</a>
       </nav>
 
       <div class="p-6 border-t">
@@ -33,7 +39,10 @@
           </div>
           <span class="ml-auto text-xs">⚙️</span>
         </div>
-        <button onclick="window.location.href='signin.html'" class="w-full mt-4 py-2 text-xs font-bold text-gray-400 hover:text-red-500">Log Out</button>
+        <button onclick="localStorage.clear(); window.location.href='signin.html';" 
+        class="w-full mt-4 py-2 text-xs font-bold ...">
+            Log Out
+        </button>
       </div>
     </aside>
 

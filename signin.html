@@ -40,15 +40,35 @@
         const password = document.getElementById('password').value;
 
         try {
-          const res = await fetch('http://localhost:8080/api/login', {
+          const res = await fetch('http://localhost:8080/abe/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
           });
           const result = await res.json();
+          console.log("Backend Response Data:", result);
+          // --- Fixed code for signin.html ---
+          // Inside your login fetch success block:
           if (res.ok) {
-            localStorage.setItem('auth_token', result.token);
-            window.location.href = 'layout.html';
+              localStorage.setItem('auth_token', result.token);
+              
+              // 1. Process attributes (ensure array format)
+              let rawAttrs = result.attributes || [];
+              if (typeof rawAttrs === 'string') {
+                  rawAttrs = rawAttrs.includes(',') ? rawAttrs.split(',') : [rawAttrs];
+              }
+              localStorage.setItem('user_attributes', JSON.stringify(rawAttrs));
+              
+              // 2. Save user profile information
+              localStorage.setItem('username', result.username);
+              localStorage.setItem('user_email', email);
+              localStorage.setItem('user_role', result.role);
+
+              // 3. Save User ID (Crucial for ownership logic in Explorer)
+              localStorage.setItem('user_id', result.id || result.userId); 
+
+              // 4. Redirect to shell
+              window.location.href = 'layout.html';
           } else {
             alert(result.message);
           }

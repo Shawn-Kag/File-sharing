@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ABE Admin Panel</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8" x-data="adminPanel()">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-800">User Management (Admin)</h1>
+            <a href="layout.html" class="text-sm text-blue-600 hover:underline">← Back to Dashboard</a>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 1. Attribute Catalog Management Card       -->
+        <!-- ========================================== -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h2 class="text-lg font-extrabold text-gray-900 mb-6 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                Attribute Catalog
+            </h2>
+            
+            <!-- Changed to flex-col for top-bottom stacking -->
+            <div class="flex flex-col gap-5">
+                
+                <!-- TOP Side: Add New Attribute -->
+                <div class="bg-blue-50/50 p-5 rounded-xl border border-blue-100">
+                    <label class="block text-[11px] font-black text-blue-600 uppercase tracking-widest mb-3">Create New Attribute</label>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" x-model="newCatalogAttr" placeholder="e.g., Finance, Engineer" 
+                            class="flex-1 p-3 bg-white border border-blue-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all shadow-sm">
+                        <button @click="addToCatalog" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 whitespace-nowrap">
+                            Add to Catalog
+                        </button>
+                    </div>
+                </div>
+
+                <!-- BOTTOM Side: Existing Attributes List -->
+                <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                    <label class="block text-[11px] font-black text-gray-500 uppercase tracking-widest mb-4">Active Attributes List</label>
+                    
+                    <!-- Added: max-h-[240px] and overflow-y-auto to make it scrollable when there are too many attributes -->
+                    <div class="flex flex-wrap gap-2.5 max-h-[240px] overflow-y-auto pr-2 items-start" style="scrollbar-width: thin;">
+                        <template x-for="attr in catalog" :key="attr">
+                            <!-- Redesigned Tags with slightly more padding -->
+                            <span class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-bold shadow-sm flex items-center gap-2 hover:border-blue-300 hover:text-blue-600 transition-colors cursor-default">
+                                <div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                                <span x-text="attr"></span>
+                            </span>
+                        </template>
+                        
+                        <!-- Empty State UI -->
+                        <template x-if="catalog.length === 0">
+                            <div class="flex items-center w-full text-sm text-gray-400 italic font-medium py-2">
+                                No attributes registered yet.
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 2. User Management Table Card              -->
+        <!-- ========================================== -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            
+            <!-- Table Header Section -->
+            <div class="p-6 border-b border-gray-100 bg-gray-50/30">
+                <h2 class="text-lg font-extrabold text-gray-900 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    User Management
+                </h2>
+            </div>
+
+            <!-- DO NOT DELETE: Keep your existing table tag here -->
+
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-4 font-semibold text-gray-700">ID</th>
+                        <th class="px-6 py-4 font-semibold text-gray-700">Username</th>
+                        <th class="px-6 py-4 font-semibold text-gray-700">Email</th>
+                        <th class="px-6 py-4 font-semibold text-gray-700">Attributes</th>
+                        <th class="px-6 py-4 font-semibold text-gray-700 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="user in users" :key="user.id">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 text-gray-500" x-text="user.id"></td>
+                            <td class="px-6 py-4 font-medium text-gray-900" x-text="user.username"></td>
+                            <td class="px-6 py-4 text-gray-500" x-text="user.email"></td>
+                            <td class="px-6 py-4">
+                                <template x-for="attr in (user.attributes ? user.attributes.split(',') : [])">
+                                    <span class="inline-block px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] mr-1 mb-1" x-text="attr"></span>
+                                </template>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button @click="openAssignModal(user)" class="text-blue-600 font-bold hover:text-blue-800">Assign</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Assign Attributes Modal -->
+    <div x-show="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4" x-cloak>
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-lg font-bold mb-4">Assign Attributes for <span x-text="selectedUser?.username" class="text-blue-600"></span></h3>
+            <p class="text-xs text-gray-400 mb-4">Separate attributes with commas (e.g., Dep:Finance,Role:Manager)</p>
+            
+            <input type="text" x-model="newAttributes" class="w-full p-3 border border-gray-200 rounded-xl mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter tags...">
+            
+            <div class="flex gap-3">
+                <button @click="showModal = false" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold">Cancel</button>
+                <button @click="submitAssignment" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">Update</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function adminPanel() {
+            return {
+                users: [],
+                catalog: [],
+                showModal: false,
+                selectedUser: null,
+                newAttributes: '',
+                newCatalogAttr: '',
+                baseUrl: 'http://localhost:8080/abe',
+
+                async addToCatalog() {
+                    if (!this.newCatalogAttr.trim()) return;
+                    
+                    try {
+                        const res = await fetch(`${this.baseUrl}/admin/attributes`, { 
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+                            },
+                            body: JSON.stringify({
+                                name: this.newCatalogAttr.trim(),
+                                description: "Added via Admin Panel" 
+                            })
+                        });
+                        
+                        if (res.ok) {
+                            alert(`Attribute "${this.newCatalogAttr}" added!`);
+                            this.newCatalogAttr = ''; 
+                            await this.fetchCatalog(); 
+                        } else {
+                            const errorData = await res.json();
+                            alert('Add Failed: ' + (errorData.error || 'Unknown error'));
+                        }
+                    } catch (e) {
+                        console.error("Catalog Error:", e);
+                        alert('Network Error: Please ensure backend is running with @CrossOrigin.');
+                    }
+                },
+
+                async init() {
+                    const token = localStorage.getItem('auth_token');
+                    if (!token) window.location.href = 'signin.html';
+                    await this.fetchUsers();
+                    await this.fetchCatalog();
+                },
+
+                async fetchUsers() {
+                    try {
+                        const res = await fetch(`${this.baseUrl}/admin/users`, {
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+                        });
+                        this.users = await res.json();
+                    } catch (e) { alert('Failed to load users. Are you admin?'); }
+                },
+
+                async fetchCatalog() {
+                    try {
+                        const url = `${this.baseUrl}/attributes`; 
+                        console.log("Fetching catalog from:", url);
+
+                        const res = await fetch(url, {
+                            method: 'GET',
+                            headers: { 
+                                'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+                            }
+                        });
+                        
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.catalog = data.map(item => item.name);
+                            console.log("Catalog loaded:", this.catalog);
+                        } else {
+                            console.error("Failed to fetch catalog. Status:", res.status);
+                        }
+                    } catch (e) {
+                        console.error("Network Error while fetching catalog:", e);
+                    }
+                },
+
+            openAssignModal(user) {
+                this.selectedUser = user;
+                const allAttrs = user.attributes ? user.attributes.split(',') : [];
+                const displayAttrs = allAttrs.filter(attr => !attr.startsWith('ID:'));
+                
+                this.newAttributes = displayAttrs.join(',');
+                this.showModal = true;
+            },
+
+                async submitAssignment() {
+                    try {
+                        // Only collect new attributes entered by the admin
+                        // We skip the 'ID:' tag because the backend might manage it automatically
+                        // or it hasn't been added to the 'System Catalog'
+                        let finalAttrList = [];
+                        
+                        if (this.newAttributes && this.newAttributes.trim()) {
+                            finalAttrList = this.newAttributes.split(',')
+                                                .map(a => a.trim())
+                                                .filter(a => a && !a.startsWith('ID:'));
+                        }
+
+                        const payload = {
+                            targetUserId: parseInt(this.selectedUser.id),
+                            attributes: finalAttrList.join(',') // Send only valid business attributes
+                        };
+
+                        console.log("Submitting cleaned payload:", payload);
+
+                        const res = await fetch(`${this.baseUrl}/admin/assign-attributes`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (res.ok) {
+                            alert('Attributes updated successfully!');
+                            this.showModal = false;
+                            await this.fetchUsers();
+                        } else {
+                            const errorMsg = await res.text();
+                            console.error("Backend Error:", errorMsg);
+                            alert('Update Failed: ' + errorMsg);
+                        }
+                    } catch (e) { 
+                        console.error("Request Error:", e);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

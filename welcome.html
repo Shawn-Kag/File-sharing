@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureShare | ABE Encrypted Cloud</title>
+    <!-- Import Google Fonts for the elegant typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-serif-italic {
+            font-family: 'Playfair Display', serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 m-0 p-0 overflow-x-hidden">
+
+    <!-- Background Section with Image Placeholder -->
+    <!-- REPLACE 'your-custom-bg.jpg' WITH YOUR ACTUAL IMAGE PATH -->
+    <div class="relative min-h-screen bg-cover bg-center bg-no-repeat" 
+         style="background-image: url('./image/pexels-markus-winkler-1430818-4160095.jpg');">
+
+        <div class="absolute inset-0 bg-gray-900/40 bg-gradient-to-b from-gray-900/30 to-gray-900/60"></div>
+
+        <!-- Content Container -->
+        <div class="relative z-10 flex flex-col min-h-screen">
+            
+            <!-- Navbar -->
+            <nav class="w-full flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
+                <!-- Logo -->
+                <div class="text-white text-2xl font-extrabold tracking-tighter flex items-center gap-2">
+                    <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    Secure<span class="text-blue-500">Share</span>
+                </div>
+                
+                <!-- Top Right Login Button -->
+                <button onclick="window.location.href='signin.html'" 
+                        class="px-6 py-2.5 rounded-full bg-white/5 hover:bg-white/15 text-white text-sm font-semibold backdrop-blur-md transition-all border border-white/10 hover:border-white/30">
+                    Sign In
+                </button>
+            </nav>
+
+            <!-- Hero Main Section -->
+            <main class="flex-1 flex flex-col items-center justify-center text-center px-4 mt-[-60px]">
+                
+                <!-- Main Headline -->
+                <h1 class="text-5xl md:text-7xl font-extrabold text-white tracking-tight leading-tight max-w-4xl">
+                    Attribute-Based Encryption & <br>
+                    <span class="font-serif-italic text-blue-400 font-normal tracking-wide">Secure Cloud Storage</span>
+                </h1>
+                
+                <!-- Description Paragraph -->
+                <p class="mt-8 text-lg text-gray-300 max-w-2xl leading-relaxed">
+                    SecureShare is a robust, privacy-focused cloud platform with ABE-powered access control. 
+                    Fast, modern, and built for data owners, enterprises, and research teams.
+                </p>
+                
+                <!-- Center CTA Button -->
+                <div class="mt-12">
+                    <button onclick="handleStartClick()" 
+                            class="px-10 py-4 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold shadow-[0_0_40px_rgba(37,99,235,0.4)] hover:shadow-[0_0_60px_rgba(37,99,235,0.6)] transition-all duration-300 transform hover:-translate-y-1">
+                        Get Started
+                    </button>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Logic Script -->
+    <script>
+        function handleStartClick() {
+            // Check if the user is logged in by looking for the token in localStorage
+            const token = localStorage.getItem('auth_token');
+            
+            if (token) {
+                // If logged in, go to the main layout/explorer
+                window.location.href = 'layout.html'; 
+            } else {
+                // If not logged in, redirect to login page
+                window.location.href = 'signin.html';
+            }
+        }
+    </script>
+
+</body>
+</html>
