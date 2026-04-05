@@ -140,7 +140,7 @@
                 <p class="text-[10px] font-black text-gray-400 mb-4 uppercase tracking-widest ml-1">Your Available Attributes:</p>
                 <div class="flex flex-wrap gap-2">
                     <template x-for="attr in userAttributes" :key="attr">
-                        <button type="button" @click="policy = policy ? policy + ' & ' + attr : attr" 
+                        <button type="button" @click="policy = policy ? policy + ' , ' + attr : attr" 
                                 class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-bold shadow-sm flex items-center gap-2 hover:border-blue-300 hover:text-blue-600 hover:shadow transition-all cursor-pointer active:scale-95 select-none">
                             <div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
                             <span x-text="attr"></span>
@@ -284,12 +284,12 @@
                     // 1. Define a safe character set
                     const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
                     
-                    // 2. Build a string of exactly 16 characters
+                    // 2. Build a string of exactly 32 characters
                     let rawKey = '';
-                    for (let i = 0; i < 16; i++) {
+                    for (let i = 0; i < 32; i++) {
                         rawKey += charset.charAt(Math.floor(Math.random() * charset.length));
                     }
-                    // 3. Convert to Base64 (16 chars will always perfectly encode without data loss)
+                    // 3. Convert to Base64 (32 chars will always perfectly encode without data loss)
                     const base64Key = btoa(rawKey);
                     
                     formData.append('key', base64Key); 

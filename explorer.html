@@ -46,29 +46,45 @@
         },
 
         get filteredList() {
-            return this.files.filter(f => {
-                const searchStr = this.searchQuery.toLowerCase();
-                const matchSearch = (f.filename || f.fileName || f.name || '').toLowerCase().includes(searchStr) || 
-                                    (f.policy || '').toString().toLowerCase().includes(searchStr);
-                if (!matchSearch) return false;
-
-                if (this.currentFilter === 'all') return true;
-                return this.getFileStatus(f) === this.currentFilter;
+            if (!this.searchQuery) {
+                return this.files;
+            }
+            
+            const query = this.searchQuery.toLowerCase();
+            return this.files.filter(file => {
+                const name = (file.filename || file.name || '').toLowerCase();
+                const policy = (file.policy || '').toLowerCase();
+                return name.includes(query) || policy.includes(query);
             });
         },
 
         canDecrypt(policy, userAttributes) {
             if (!policy || !userAttributes) return false;
-            const requiredAttrs = policy.split(' AND ').map(a => a.trim());
-            return requiredAttrs.every(attr => userAttributes.includes(attr));
-        },
-
-        requestAccess(fileId, fileName) {
-            if(!this.requestedFiles.includes(fileId)) {
-                this.requestedFiles.push(fileId);
-                localStorage.setItem('abe_requests', JSON.stringify(this.requestedFiles));
-                alert(`Access request for '${fileName}' has been sent!`);
+            
+            // 1. Normalize the current logged-in user's attributes into an array
+            let attrs = [];
+            if (typeof userAttributes === 'string') {
+                attrs = userAttributes.split(',').map(a => a.trim());
+            } else if (Array.isArray(userAttributes)) {
+                attrs = userAttributes.map(a => typeof a === 'string' ? a.trim() : '');
             }
+
+            // 2. Owner Privilege Check: If the policy contains the current user's ID, grant immediate access
+            const userIds = attrs.filter(a => a.toUpperCase().startsWith('ID:'));
+            for (let uid of userIds) {
+                if (policy.includes(uid)) return true; // Owner can always decrypt
+            }
+
+            // 3. Shared Access Check: Strip out owner IDs from the policy, check only public tags (e.g., Manager, HR)
+            const requiredAttrs = policy.split(',')
+                                        .map(a => a.trim())
+                                        .filter(a => a !== '' && !a.toUpperCase().startsWith('ID:'));
+            
+            // If there are no public tags left after filtering (meaning it wasn't shared), deny access
+            if (requiredAttrs.length === 0) return false;
+            
+            // 4. Final Verdict: Check if the current user possesses ALL the required public tags
+            return requiredAttrs.every(attr => attrs.includes(attr));
         },
 
         downloadFile(fileId, filename) {
@@ -120,31 +136,118 @@
                     alert('Failed to delete file: ' + (errorData.message || 'Permission denied.'));
                 }
             } catch (error) {
-                console.error('Delete error:', error);
-                alert('An error occurred while deleting the file.');
-            }
-        }, 
+                    console.error('Delete error:', error);
+                    alert('An error occurred while deleting the file.');
+                } 
+            },
 
-        get stats() {
-            let granted = 0; 
-            let denied = 0; 
-            let pending = 0;
+        async deleteFile(fileId) {
+                    if (!confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
+                        return;
+                    }
+                    try {
+                        const token = localStorage.getItem('auth_token');
+                        const response = await fetch(`http://localhost:8080/abe/delete/${fileId}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+                        if (response.ok) {
+                            alert('File deleted successfully.');
+                            window.location.reload();
+                        } else {
+                            const errorData = await response.json().catch(() => ({}));
+                            alert('Failed to delete file: ' + (errorData.message || 'Permission denied.'));
+                        }
+                    } catch (error) {
+                        console.error('Delete error:', error);
+                        alert('An error occurred while deleting the file.');
+                    }
+                },
 
-            // Use the single source of truth: getFileStatus
-            this.files.forEach(f => {
-                const status = this.getFileStatus(f);
-                if (status === 'granted') {
-                    granted++;
-                } else if (status === 'pending') {
-                    pending++;
-                } else {
-                    denied++;
+                get availableTags() {
+                    let tags = [];
+
+                    const token = localStorage.getItem('auth_token');
+                    if (token && typeof parseJwt === 'function') {
+                        const decoded = parseJwt(token);
+                        if (decoded) {
+                            tags = decoded.attributes || decoded.roles || [];
+                        }
+                    }
+
+                    if (!tags || tags.length === 0) {
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            const val = localStorage.getItem(key);
+                            if (val && (val.includes('ID:') || val.includes('Manager') || val.includes('HR'))) {
+                                try {
+                                    const parsed = JSON.parse(val);
+                                    if (Array.isArray(parsed)) {
+                                        tags = parsed;
+                                        break; 
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+
+                    if ((!tags || tags.length === 0) && this.user && this.user.attributes) {
+                        tags = this.user.attributes;
+                    }
+
+                    if (typeof tags === 'string') tags = tags.split(',');
+                    if (!Array.isArray(tags)) return [];
+
+                    return tags.map(a => typeof a === 'string' ? a.trim() : '')
+                            .filter(a => a !== '' && !a.toUpperCase().startsWith('ID:'));
+                },
+
+                shareModalOpen: false,
+                shareFileId: null,
+                shareFileName: '',
+                shareTagsInput: '',
+
+                openShareModal(file) {
+                    this.shareFileId = file.fileId || file.id;
+                    this.shareFileName = file.filename || file.name;
+                    this.shareTagsInput = ''; 
+                    this.shareModalOpen = true; 
+                },
+
+                async submitShare() {
+                    if (!this.shareTagsInput.trim()) {
+                        alert('Please select at least one attribute!');
+                        return;
+                    }
+                    try {
+                        const token = localStorage.getItem('auth_token'); 
+                        const response = await fetch('http://localhost:8080/abe/update-policy', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + token
+                            },
+                            body: JSON.stringify({
+                                id: this.shareFileId,             
+                                selectedTags: this.shareTagsInput     
+                            })
+                        });
+
+                        if (response.ok) {
+                            alert('File shared successfully! Policy updated.');
+                            this.shareModalOpen = false;
+                            window.location.reload(); 
+                        } else {
+                            const errorData = await response.json().catch(() => ({}));
+                            alert('Failed to share: ' + (errorData.message || 'Server error.'));
+                        }
+                    } catch (error) {
+                        console.error('Share error:', error);
+                        alert('An error occurred while sharing.');
+                    }
                 }
-            });
+            }"
 
-            return { granted, denied, pending };
-        }
-    }"
         x-init="
             const token = localStorage.getItem('auth_token');
             if (token) {
@@ -179,33 +282,6 @@
             <p class="text-gray-500 font-medium mt-1">Manage your access rights and cloud files</p>
         </div>
 
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-8 w-full" x-cloak>
-            
-            <div @click="currentFilter = currentFilter === 'granted' ? 'all' : 'granted'" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all duration-300" :class="currentFilter === 'granted' ? 'ring-2 ring-green-500 transform scale-105' : 'hover:bg-gray-50'">
-                <div class="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600 text-2xl">🟢</div>
-                <div>
-                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Access Granted</h4>
-                    <h3 class="mt-1 text-3xl font-black text-gray-900" x-text="stats.granted"></h3>
-                </div>
-            </div>
-
-            <div @click="currentFilter = currentFilter === 'pending' ? 'all' : 'pending'" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all duration-300" :class="currentFilter === 'pending' ? 'ring-2 ring-yellow-400 transform scale-105' : 'hover:bg-gray-50'">
-                <div class="flex h-14 w-14 items-center justify-center rounded-full bg-yellow-100 text-yellow-600 text-2xl">🟡</div>
-                <div>
-                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pending Request</h4>
-                    <h3 class="mt-1 text-3xl font-black text-gray-900" x-text="stats.pending"></h3>
-                </div>
-            </div>
-
-            <div @click="currentFilter = currentFilter === 'denied' ? 'all' : 'denied'" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all duration-300" :class="currentFilter === 'denied' ? 'ring-2 ring-red-400 transform scale-105' : 'hover:bg-gray-50'">
-                <div class="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600 text-2xl">🔴</div>
-                <div>
-                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Access Denied</h4>
-                    <h3 class="mt-1 text-3xl font-black text-gray-900" x-text="stats.denied"></h3>
-                </div>
-            </div>
-        </div>
-
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden w-full">
             <div class="px-6 py-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                <div class="relative w-full max-w-md">
@@ -221,7 +297,6 @@
                         <tr>
                             <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">File Name</th>
                             <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">ABE Policy</th>
-                            <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
                             <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
                         </tr>
                     </thead>
@@ -244,56 +319,67 @@
                                     </span>
                                 </td>
 
-                                <td class="px-6 py-5 text-center">
-                                    <!-- 1. Approved: Admin, Owner, Decryptable by ABE, or explicitly Approved by Owner -->
-                                    <template x-if="user.role === 'ADMIN' || String(file.ownerId || file.owner) === String(localStorage.getItem('user_id')) || (typeof canDecrypt === 'function' && canDecrypt(file.policy, user.attributes)) || file.status === 'APPROVED'">
-                                        <span class="px-3 py-1 rounded-full text-[10px] font-black bg-green-50 text-green-600 border border-green-100 uppercase">Approved</span>
-                                    </template>
+                            <td class="px-6 py-5">
+                                <div class="flex items-center justify-end gap-2">
 
-                                    <!-- 2. Pending: Requested but not yet processed by Owner -->
-                                    <template x-if="user.role !== 'ADMIN' && String(file.ownerId || file.owner) !== String(localStorage.getItem('user_id')) && !canDecrypt(file.policy, user.attributes) && file.status === 'PENDING'">
-                                        <span class="px-3 py-1 rounded-full text-[10px] font-black bg-yellow-50 text-yellow-600 border border-yellow-100 uppercase">Pending</span>
-                                    </template>
+                                    <button x-show="String(file.ownerId || file.owner) === String(localStorage.getItem('user_id'))" 
+                                            @click="openShareModal(file)" 
+                                            class="px-4 py-2 bg-green-50 text-green-600 border border-green-200 text-[10px] font-black rounded-lg uppercase tracking-widest hover:bg-green-500 hover:text-white transition-all">
+                                        Share
+                                    </button>
 
-                                    <!-- 3. Rejected: Explicitly rejected by Owner -->
-                                    <template x-if="user.role !== 'ADMIN' && String(file.ownerId || file.owner) !== String(localStorage.getItem('user_id')) && !canDecrypt(file.policy, user.attributes) && file.status === 'REJECTED'">
-                                        <span class="px-3 py-1 rounded-full text-[10px] font-black bg-red-50 text-red-600 border border-red-100 uppercase">Rejected</span>
-                                    </template>
+                                    <button x-show="user.role === 'ADMIN' || String(file.ownerId || file.owner) === String(localStorage.getItem('user_id')) || canDecrypt(file.policy, user.attributes)"
+                                            @click="downloadFile(file.fileId || file.id, file.filename)"
+                                            class="px-4 py-2 bg-gray-900 text-white text-[10px] font-black rounded-lg uppercase tracking-widest hover:bg-black transition-all">
+                                        Download
+                                    </button>
 
-                                    <!-- 4. No Access: Default state before any request is made -->
-                                    <template x-if="user.role !== 'ADMIN' && String(file.ownerId || file.owner) !== String(localStorage.getItem('user_id')) && !canDecrypt(file.policy, user.attributes) && (!file.status || file.status === 'NONE')">
-                                        <span class="px-3 py-1 rounded-full text-[10px] font-black bg-gray-50 text-gray-400 border border-gray-100 uppercase">No Access</span>
-                                    </template>
-                                </td>
+                                    <button x-show="String(file.ownerId || file.owner) === String(localStorage.getItem('user_id'))"
+                                            @click="deleteFile(file.fileId || file.id)"
+                                            class="px-4 py-2 bg-red-50 text-red-500 border border-red-200 text-[10px] font-black rounded-lg uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">
+                                        Delete
+                                    </button>
 
-                                <td class="px-6 py-5">
-                                    <div class="flex items-center justify-end gap-2">
-                                        
-                                        <button x-show="String(file.ownerId || file.owner) === String(localStorage.getItem('user_id'))" 
-                                                @click="deleteFile(file.fileId || file.id)" 
-                                                class="px-4 py-2 bg-red-50 text-red-500 border border-red-200 text-[10px] font-black rounded-lg uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">
-                                            Delete
-                                        </button>
-
-                                        <button x-show="user.role === 'ADMIN' || String(file.ownerId || file.owner) === String(localStorage.getItem('user_id')) || canDecrypt(file.policy, user.attributes) || file.status === 'APPROVED'"
-                                                @click="downloadFile(file.fileId || file.id, file.filename)"
-                                                class="px-4 py-2 bg-gray-900 text-white text-[10px] font-black rounded-lg uppercase tracking-widest hover:bg-black transition-all">
-                                            Download
-                                        </button>
-
-                                        <button x-show="user.role !== 'ADMIN' && String(file.ownerId || file.owner) !== String(localStorage.getItem('user_id')) && !canDecrypt(file.policy, user.attributes) && (!file.status || file.status === 'REJECTED')"
-                                                @click="requestAccess(file.fileId || file.id, file.filename)"
-                                                class="px-4 py-2 bg-blue-600 text-white text-[10px] font-black rounded-lg uppercase tracking-widest hover:bg-blue-700 transition-all">
-                                            Request
-                                        </button>
-
-                                        <span x-show="file.status === 'PENDING'" class="text-[10px] text-gray-400 italic font-bold">Waiting for Owner...</span>
-                                        
-                                    </div>
-                                </td>
+                                </div>
+                            </td>
                             </tr>
                         </template>
                     </tbody>
+
+                <div x-show="shareModalOpen" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm transition-opacity">
+                    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" @click.away="shareModalOpen = false">
+                        <h3 class="text-lg font-black text-gray-900 mb-2">Share File (Update Policy)</h3>
+                        <p class="text-xs text-gray-500 mb-4">Sharing: <span class="font-bold text-blue-600" x-text="shareFileName"></span></p>
+                        
+                        <div class="mb-5">
+                            <label class="block text-xs font-bold text-gray-700 mb-2">Select Attributes</label>
+                            
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                <template x-for="attr in availableTags" :key="attr">
+                                    <button @click="shareTagsInput = shareTagsInput ? shareTagsInput + ',' + attr : attr"
+                                            class="px-3 py-1 rounded-full text-[10px] font-black border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
+                                            x-text="attr">
+                                    </button>
+                                </template>
+                                
+                                <div x-show="availableTags.length === 0" class="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg w-full border border-red-100">
+                                    ⚠️ System couldn't find your attributes. Please ensure you logged in again after assigning them.
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[40px] text-xs font-mono text-gray-800 flex items-center justify-between">
+                                <span x-text="shareTagsInput || 'No attributes selected'"></span>
+                                <button x-show="shareTagsInput" @click="shareTagsInput = ''" class="text-red-500 text-[10px] font-bold hover:underline">CLEAR</button>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3">
+                            <button @click="shareModalOpen = false" class="px-5 py-2.5 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200">Cancel</button>
+                            <button @click="submitShare()" class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700">Confirm Share</button>
+                        </div>
+                    </div>
+                </div>
+
                 </table>
             </div>
         </div>
@@ -316,15 +402,18 @@
         window.formatAbePolicy = function(policy) {
         if (!policy) return '--';
 
-        const parts = policy.split(/[,]/); 
-        
+        // 1. Split the policy string by comma or pipe
+        const parts = policy.split(/[,|]/);
+
+        // 2. Clean up whitespace and filter out invalid tags or internal ID tags
         const filtered = parts.map(p => p.trim()).filter(p => {
             return p && 
-                p.toUpperCase() !== '&' && 
-                !p.toUpperCase().includes('ID:'); 
+                   p.toUpperCase() !== '&' && 
+                   !p.toUpperCase().includes('ID:');
         });
 
-        return filtered.length > 0 ? filtered.join(' & ') : 'OWNER ONLY';
+        // 3. CRITICAL FIX: Join the public tags using a comma instead of an ampersand (&)
+        return filtered.length > 0 ? filtered.join(', ') : 'OWNER ONLY';
     };
 
 </script>
