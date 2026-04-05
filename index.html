@@ -191,12 +191,23 @@
                             <tr class="hover:bg-gray-50/50 transition-colors">
                                 <td class="px-8 py-5">
                                     <div class="flex items-center gap-3">
-                                        <span class="text-xl">📄</span>
-                                        <span class="font-bold text-gray-700" x-text="file.filename"></span>
+                                        <template x-if="file.isDir">
+                                            <div class="flex items-center gap-3 text-blue-600">
+                                                <span class="text-xl">📁</span>
+                                                <span class="font-bold" x-text="file.filename || file.name"></span>
+                                            </div>
+                                        </template>
+
+                                        <template x-if="!file.isDir">
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-xl">📄</span>
+                                                <span class="font-bold text-gray-700" x-text="file.filename || file.name"></span>
+                                            </div>
+                                        </template>
                                     </div>
                                 </td>
                                 <td class="px-8 py-5 text-right">
-                                    <button @click="downloadFile(file.id, file.filename)" class="px-5 py-2 bg-gray-900 text-white text-xs font-black rounded-lg hover:bg-black transition-all">
+                                    <button x-show="!file.isDir" @click="downloadFile(file.id, file.filename)" class="px-5 py-2 bg-gray-900 text-white text-xs font-black rounded-lg hover:bg-black transition-all">
                                         Decrypt & Download
                                     </button>
                                 </td>
